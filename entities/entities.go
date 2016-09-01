@@ -12,8 +12,9 @@ import (
 
 const Endpoint = "https://language.googleapis.com/v1beta1/documents:analyzeEntities"
 
-var errMissingKey = errors.New("must provide and API key")
+var ErrMissingKey = errors.New("must provide an API key")
 
+// An Entity represents a phrase is the text that is a known entity of a given Type.
 type Entity struct {
 	Name     string            `json:"name"`
 	Type     Type              `json:"type"`
@@ -22,6 +23,7 @@ type Entity struct {
 	Mentions []Mention         `json:"mentions"`
 }
 
+// A Type specifies the valid entity types returned by the API.
 type Type string
 
 const (
@@ -35,30 +37,36 @@ const (
 	TypeOther             = "OTHER"
 )
 
+// A Mention is a wrapper for TextSpan objects.
 type Mention struct {
 	Text TextSpan `json:"text"`
 }
 
+// A TextSpan specifies the offset in the document where an entity was found.
 type TextSpan struct {
 	Content     string `json:"content"`
 	BeginOffset int    `json:"beginOffset"`
 }
 
-type Request struct {
+// A Request represents the JSON object sent to the entities API.
+type request struct {
 	Document gcnl.Document `json:"document"`
 	Encoding gcnl.Encoding `json:"encodingType"`
 
 	key string
 }
 
-func NewRequest(key string) *Request {
-	return &Request{
+// NewRequest returns a Request object with the given API key.
+func NewRequest(key string) *request {
+	return &request{
 		Encoding: gcnl.EncodingDefault,
 		key:      key,
 	}
 }
 
-func (req *Request) FromURL(url string) (entities []Entity, err error) {
+// FromURL returns a slice of entities retrieved using a given a URL. It expects
+// the content retrieved from URL to be valid HTML.
+func (req *request) FromURL(url string) (entities []Entity, err error) {
 	doc, err := gcnl.NewHTMLDocument(url)
 	if err != nil {
 		return
@@ -67,13 +75,15 @@ func (req *Request) FromURL(url string) (entities []Entity, err error) {
 	return req.do()
 }
 
-func (req *Request) FromPlainText(content string) (entities []Entity, err error) {
+// FromPlainText returns a slice of entities retrieved using a given plain text.
+func (req *request) FromPlainText(content string) (entities []Entity, err error) {
 	panic(errors.New("TODO: FromPlainText"))
 }
 
-func (req *Request) do() (entities []Entity, err error) {
+// Do makes the actual API request for a given Request.
+func (req *request) do() (entities []Entity, err error) {
 	if len(req.key) == 0 {
-		err = errMissingKey
+		err = ErrMissingKey
 		return
 	}
 
