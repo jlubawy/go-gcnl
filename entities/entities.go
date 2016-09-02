@@ -37,9 +37,12 @@ const (
 	TypeOther             = "OTHER"
 )
 
+// A Map is a map of Types to Entities.
+type Map map[Type][]Entity
+
 // A Mention is a wrapper for TextSpan objects.
 type Mention struct {
-	Text TextSpan `json:"text"`
+	TextSpan TextSpan `json:"text"`
 }
 
 // A TextSpan specifies the offset in the document where an entity was found.
@@ -50,38 +53,43 @@ type TextSpan struct {
 
 // A Request represents the JSON object sent to the entities API.
 type request struct {
-	Document gcnl.Document `json:"document"`
-	Encoding gcnl.Encoding `json:"encodingType"`
-
+	Doc gcnl.Document `json:"document"`
+	Enc gcnl.Encoding `json:"encodingType"`
 	key string
 }
 
 // NewRequest returns a Request object with the given API key.
 func NewRequest(key string) *request {
 	return &request{
-		Encoding: gcnl.EncodingDefault,
-		key:      key,
+		Enc: gcnl.EncodingDefault,
+		key: key,
 	}
+}
+
+// Document returns the document used in the request.
+func (req *request) Document() gcnl.Document {
+	return req.Doc
 }
 
 // FromURL returns a slice of entities retrieved using a given a URL. It expects
 // the content retrieved from URL to be valid HTML.
-func (req *request) FromURL(url string) (entities []Entity, err error) {
+func (req *request) FromURL(url string) (entityMap Map, err error) {
 	doc, err := gcnl.NewHTMLDocument(url)
 	if err != nil {
 		return
 	}
-	req.Document = doc
+	req.Doc = doc
 	return req.do()
 }
 
 // FromPlainText returns a slice of entities retrieved using a given plain text.
-func (req *request) FromPlainText(content string) (entities []Entity, err error) {
-	panic(errors.New("TODO: FromPlainText"))
+func (req *request) FromPlainText(content string) (entityMap Map, err error) {
+	req.Doc = gcnl.NewPlainTextDocument(content)
+	return req.do()
 }
 
 // Do makes the actual API request for a given Request.
-func (req *request) do() (entities []Entity, err error) {
+func (req *request) do() (entityMap Map, err error) {
 	if len(req.key) == 0 {
 		err = ErrMissingKey
 		return
@@ -118,6 +126,14 @@ func (req *request) do() (entities []Entity, err error) {
 		return
 	}
 
-	entities = jsonResp.Entities
+	entityMap = make(Map)
+
+	for _, e := range jsonResp.Entities {
+		if entityMap[e.Type] == nil {
+			entityMap[e.Type] = make([]Entity, 0)
+		}
+		entityMap[e.Type] = append(entityMap[e.Type], e)
+	}
+
 	return
 }
