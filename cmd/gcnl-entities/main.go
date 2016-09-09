@@ -26,9 +26,13 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
+	"net/url"
 	"os"
 
 	"github.com/gorilla/mux"
+
+	"github.com/jlubawy/go-boilerpipe"
+	"github.com/jlubawy/go-boilerpipe/extractor"
 
 	"github.com/jlubawy/go-gcnl"
 	"github.com/jlubawy/go-gcnl/entities"
@@ -91,11 +95,35 @@ func HandleIndex(w http.ResponseWriter, r *http.Request) {
 	case "GET":
 
 	case "POST":
-		// Sanitize content before using
-		content := template.HTMLEscapeString(r.FormValue("content"))
-		if len(content) == 0 {
-			data = "Error: Must provide content."
-			goto HANDLE_GET
+		var content string
+
+		urlOrContent := r.FormValue("content")
+
+		if url, err := url.Parse(urlOrContent); err == nil {
+			resp, err := http.Get(url.String())
+			if err != nil {
+				fmt.Fprintln(os.Stderr, err)
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			defer resp.Body.Close()
+
+			doc, err := boilerpipe.NewTextDocument(resp.Body)
+			if err != nil {
+				fmt.Fprintln(os.Stderr, err)
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+
+			extractor.Article().Process(doc)
+			content = template.HTMLEscapeString(doc.Content())
+		} else {
+			// Else probably plain-text so sanitize content before using
+			content = template.HTMLEscapeString(urlOrContent)
+			if len(content) == 0 {
+				data = "Error: Must provide content."
+				goto HANDLE_GET
+			}
 		}
 
 		req := entities.NewRequest(apiKey)
