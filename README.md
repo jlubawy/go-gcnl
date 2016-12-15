@@ -2,6 +2,8 @@
 
 This package can be used to easily access the [Google Cloud Natural Language API](https://cloud.google.com/natural-language/).
 
+***Update:*** Found out about [Google's official libraries](https://godoc.org/google.golang.org/api/language/v1) after I created this library. I'd recommend using them instead as I'm not planning on maintaining this library (assuming the official one works too).
+
 ## Quick-Start
 
 ### Analyze Entities Method
